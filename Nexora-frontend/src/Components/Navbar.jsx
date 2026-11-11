@@ -18,8 +18,12 @@ const Navbar = () => {
     <nav className="w-full h-24 text-[1.2rem] text-white font-outfit bg-[#344b75] flex justify-between items-center px-8 shadow-md">
       {/* Brand & Links */}
       <div className="flex items-center list-none gap-14">
-        <Link to="/" className="text-4xl font-bold tracking-wide hover:opacity-95">
-          TechCart
+        <Link
+          to="/"
+          className="text-4xl font-extrabold tracking-wide hover:opacity-95 flex items-center"
+        >
+          <span className="text-blue-400">Tech</span>
+          <span className="text-white">Cart</span>
         </Link>
         <div className="hidden md:flex justify-center items-center gap-8 text-gray-200">
           <motion.div whileHover={{ y: -3 }}>

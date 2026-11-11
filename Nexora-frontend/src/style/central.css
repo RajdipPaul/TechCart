@@ -270,3 +270,18 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.45);
 }
+
+/* --- Blinking Cursor Animation --- */
+@keyframes blink-cursor {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-blink-cursor {
+  animation: blink-cursor 1s steps(2, start) infinite;
+}
+

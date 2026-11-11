@@ -26,7 +26,7 @@ const Login = () => {
     }));
   };
 
-  // Handle Login submission
+  // Handle standard Login submission
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -52,6 +52,21 @@ const Login = () => {
         err.message ||
         "Invalid email or password. Please try again.";
       toast.error(errorMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // One-click demo login for instant testing without manual typing
+  const handleQuickDemoLogin = async () => {
+    setIsSubmitting(true);
+    try {
+      const result = await login("sima@gmail.com", "Pass@123");
+      const displayName = result.user?.fullName || "Sima Chakraborty";
+      toast.success(`Welcome back, ${displayName}! (Demo Account)`);
+      navigate("/");
+    } catch (err) {
+      toast.error("Demo login error: " + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -86,16 +101,16 @@ const Login = () => {
         </div>
 
         {/* Login form */}
-        <div className="w-1/2 h-full flex flex-col justify-center items-center text-black gap-10 px-6">
+        <div className="w-1/2 h-full flex flex-col justify-center items-center text-black gap-6 px-6">
           <h2 className="text-4xl font-extrabold tracking-wider">
             LOG IN
           </h2>
           <form
             onSubmit={handleSubmit}
-            className="flex flex-col justify-center items-center gap-10 w-full"
+            className="flex flex-col justify-center items-center gap-5 w-full"
             noValidate={false}
           >
-            <div className="flex flex-col justify-center items-center gap-6 w-full">
+            <div className="flex flex-col justify-center items-center gap-4 w-full">
               {/* Email */}
               <div className="relative flex justify-center items-center w-72">
                 <input
@@ -140,6 +155,7 @@ const Login = () => {
               </div>
             </div>
 
+            {/* Standard Login Button */}
             <button
               type="submit"
               disabled={isSubmitting}
@@ -154,6 +170,21 @@ const Login = () => {
                 "Login"
               )}
             </button>
+
+            {/* Quick Demo Login Option */}
+            <div className="flex flex-col items-center gap-1.5 w-72 pt-1 border-t border-gray-300">
+              <button
+                type="button"
+                onClick={handleQuickDemoLogin}
+                disabled={isSubmitting}
+                className="w-full py-2 px-3 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-md text-sm font-semibold flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all disabled:opacity-60"
+              >
+                <span>⚡ One-Click Demo Login</span>
+              </button>
+              <span className="text-[11px] text-gray-500 font-sans text-center">
+                Pre-configured: <span className="font-semibold text-gray-700">sima@gmail.com</span> / Pass@123
+              </span>
+            </div>
           </form>
         </div>
       </div>

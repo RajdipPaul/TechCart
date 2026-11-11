@@ -1,51 +1,170 @@
-import { motion } from "motion/react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Link } from "react-router-dom";
 import { FaArrowRight } from "react-icons/fa6";
-import { MdOutlineSmartToy } from "react-icons/md";
+import { HiOutlineSparkles } from "react-icons/hi2";
+import { toast } from "react-hot-toast";
+
+const AI_SAMPLE_QUESTIONS = [
+  "Tell me what you`re looking for ??\nMaybe I can help you...?!",
+  "Looking for a high-performance gaming laptop with RTX graphics?",
+  "Need a lightweight laptop for programming and college with long battery life?",
+  "What is your target budget? I can find you the best value for money!",
+  "Comparing ASUS Vivobook vs HP Victus? Ask me to break down the specs!",
+];
 
 const Herosection = () => {
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [inputValue, setInputValue] = useState("");
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Automatically cycle through engaging AI questions every 6 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setQuestionIndex((prev) => (prev + 1) % AI_SAMPLE_QUESTIONS.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleSendPrompt = (e) => {
+    e.preventDefault();
+    if (!inputValue.trim()) {
+      toast("Type your hardware query or budget to ask our AI!", {
+        icon: "💡",
+      });
+      return;
+    }
+
+    toast.success(`Query sent: "${inputValue.trim()}". Connecting to AI Shopkeeper...`);
+    setInputValue("");
+  };
+
   return (
-    <div className="h-[calc(100vh-96px)] bg-[#F0EAD6] flex flex-col justify-center items-center text-black px-6">
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        className="flex flex-col justify-center items-center gap-8 max-w-4xl text-center"
-      >
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#344b75]/10 text-[#344b75] font-semibold text-sm tracking-wider uppercase">
-          <MdOutlineSmartToy className="text-lg" />
-          Next-Gen AI E-Commerce Shopping Experience
-        </div>
+    <section className="min-h-[calc(100vh-96px)] bg-[#F0EAD6] flex items-center justify-center px-6 md:px-12 py-10 font-outfit">
+      <div className="w-full max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
+        {/* ================= LEFT SIDE: Hero Text & Action ================= */}
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-full lg:w-1/2 flex flex-col items-start text-left gap-6"
+        >
+          {/* Subtle Tagline */}
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#344b75]/10 text-[#344b75] font-semibold text-sm tracking-wide">
+            <HiOutlineSparkles className="text-base text-[#344b75]" />
+            <span>Intelligent Hardware Assistant</span>
+          </div>
 
-        <h1 className="text-5xl md:text-6xl font-extrabold font-outfit text-[#1e293b] leading-tight">
-          Find Your Perfect Tech Setup with Our{" "}
-          <span className="text-[#344b75] underline decoration-wavy decoration-[#8b5cf6]/60">
-            AI Shopkeeper
-          </span>
-        </h1>
+          {/* Main Headline */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#1e293b] leading-[1.15] tracking-tight">
+            Find the Right Tech. <br />
+            <span className="text-[#344b75] underline decoration-wavy decoration-[#344b75]/30">
+              Guided by AI.
+            </span>
+          </h1>
 
-        <p className="text-xl text-gray-700 font-outfit max-w-2xl">
-          Compare specifications, get tailored recommendations, and checkout
-          seamlessly via PayPal. Powered by intelligent hardware matching.
-        </p>
+          {/* Supporting Description */}
+          <p className="text-lg md:text-xl text-gray-700 leading-relaxed max-w-xl font-normal">
+            Discover laptops, compare hardware specifications in real-time, and get
+            personalized recommendations tailored to your exact budget and workflow.
+            Seamlessly pay with PayPal when you find the one.
+          </p>
 
-        <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
-          <Link
-            to="/signup"
-            className="px-6 py-3.5 bg-[#344b75] hover:bg-[#345696ea] text-white text-lg font-medium rounded-xl shadow-lg transition-all duration-300 flex items-center gap-3 cursor-pointer"
-          >
-            Get Started Now
-            <FaArrowRight className="text-base" />
-          </Link>
-          <button
-            type="button"
-            className="px-6 py-3.5 border-2 border-[#344b75] text-[#344b75] hover:bg-[#344b75]/5 text-lg font-medium rounded-xl transition-all duration-300 cursor-pointer"
-          >
-            Talk to AI Assistant
-          </button>
-        </div>
-      </motion.div>
-    </div>
+          {/* Primary Action Button */}
+          <div className="pt-2">
+            <motion.div
+              whileHover={{ scale: 1.04, y: -2 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 350, damping: 20 }}
+            >
+              <Link
+                to="/"
+                className="px-8 py-4 bg-transparent border-2 border-[#1e293b] hover:border-[#344b75] text-[#1e293b] hover:text-white hover:bg-[#344b75] text-xl font-semibold rounded-2xl shadow-md transition-all duration-300 flex items-center gap-3 cursor-pointer"
+              >
+                View Products
+                <FaArrowRight className="text-base" />
+              </Link>
+            </motion.div>
+          </div>
+        </motion.div>
+
+        {/* ================= RIGHT SIDE: Interactive AI Chat Box ================= */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut", delay: 0.15 }}
+          className="w-full lg:w-1/2 flex justify-center lg:justify-end"
+        >
+          <div className="w-full max-w-md bg-white/70 backdrop-blur-md border-2 border-[#344b75]/40 rounded-3xl p-6 md:p-8 shadow-2xl flex flex-col justify-between gap-8 min-h-[360px] relative">
+            {/* Chat Box Top: AI Message Bubble */}
+            <div className="flex items-start gap-4">
+              {/* AI Avatar Badge */}
+              <div className="w-12 h-12 rounded-full border-2 border-[#344b75] bg-[#344b75] text-white flex items-center justify-center font-bold text-lg shadow-md shrink-0 select-none">
+                AI
+              </div>
+
+              {/* Message Bubble */}
+              <div className="flex-1 bg-white border-2 border-gray-300 rounded-3xl rounded-tl-sm p-5 shadow-sm min-h-[100px] flex items-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={questionIndex}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-[#1e293b] font-medium text-lg leading-relaxed whitespace-pre-line"
+                  >
+                    {AI_SAMPLE_QUESTIONS[questionIndex]}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Chat Box Bottom: Input Box with Blinking Cursor and Send Button */}
+            <form
+              onSubmit={handleSendPrompt}
+              className="w-full relative flex items-center"
+            >
+              <div className="w-full relative flex items-center border-2 border-gray-400/80 focus-within:border-[#344b75] bg-white rounded-2xl px-4 py-3 shadow-inner transition-colors">
+                {/* Simulated Blinking Cursor when empty and not focused, or interactive input */}
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
+                  placeholder={isFocused ? "" : ""}
+                  className="w-full bg-transparent text-[#1e293b] text-lg font-medium outline-none pr-10"
+                  aria-label="Ask the AI Shopkeeper"
+                />
+
+                {/* Blinking cursor overlay when input is empty */}
+                {inputValue === "" && (
+                  <div
+                    onClick={() => setIsFocused(true)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center pointer-events-none select-none text-gray-500 font-normal text-lg"
+                  >
+                    <span className="text-gray-400">
+                      {isFocused ? "" : "Ask me anything..."}
+                    </span>
+                    <span className="inline-block w-[2px] h-6 bg-[#344b75] animate-blink-cursor ml-1"></span>
+                  </div>
+                )}
+
+                {/* Send Button with circled Arrow icon */}
+                <button
+                  type="submit"
+                  aria-label="Send query"
+                  className="w-9 h-9 rounded-full border-2 border-[#344b75] bg-[#344b75] hover:bg-[#345696ea] text-white flex items-center justify-center transition-transform hover:scale-110 active:scale-95 cursor-pointer shrink-0 ml-2"
+                >
+                  <FaArrowRight className="text-sm" />
+                </button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      </div>
+    </section>
   );
 };
 

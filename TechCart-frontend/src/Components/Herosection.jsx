@@ -46,12 +46,6 @@ const Herosection = () => {
           transition={{ duration: 0.5, ease: "easeOut" }}
           className="w-full lg:w-1/2 flex flex-col items-start text-left gap-6"
         >
-          {/* Subtle Tagline */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#344b75]/10 text-[#344b75] font-semibold text-sm tracking-wide">
-            <HiOutlineSparkles className="text-base text-[#344b75]" />
-            <span>Intelligent Hardware Assistant</span>
-          </div>
-
           {/* Main Headline */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#1e293b] leading-[1.15] tracking-tight">
             Find the Right Tech. <br />
@@ -62,9 +56,9 @@ const Herosection = () => {
 
           {/* Supporting Description */}
           <p className="text-lg md:text-xl text-gray-700 leading-relaxed max-w-xl font-normal">
-            Discover laptops, compare hardware specifications in real-time, and get
-            personalized recommendations tailored to your exact budget and workflow.
-            Seamlessly pay with PayPal when you find the one.
+            Discover laptops, compare hardware specifications in real-time, and
+            get personalized recommendations tailored to your exact budget and
+            workflow. Seamlessly pay with PayPal when you find the one.
           </p>
 
           {/* Primary Action Button */}

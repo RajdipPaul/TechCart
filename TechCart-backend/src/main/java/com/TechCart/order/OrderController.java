@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,5 +71,18 @@ public class OrderController {
 
         return orderService.getOrderById(
                 orderId, authentication);
+    }
+
+    // Delete or cancel a pending order.
+    @DeleteMapping("/{orderId}")
+    public Map<String, Object> cancelOrDeleteOrder(
+            @PathVariable Long orderId,
+            Authentication authentication) {
+
+        orderService.cancelOrDeleteOrder(orderId, authentication);
+        return Map.of(
+                "message", "Order cancelled and removed successfully",
+                "orderId", orderId
+        );
     }
 }

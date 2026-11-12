@@ -5,6 +5,7 @@ import { MdOutlineAlternateEmail } from "react-icons/md";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuth from "../context/useAuth";
+import { getApiErrorMessage } from "../services/api";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -46,8 +47,8 @@ const Signup = () => {
       toast.error("Please enter your contact phone number.");
       return;
     }
-    if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters long.");
+    if (formData.password.length < 8) {
+      toast.error("Password must be between 8 and 72 characters.");
       return;
     }
 
@@ -63,11 +64,10 @@ const Signup = () => {
       toast.success("Account created successfully! Please log in.");
       navigate("/login");
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        "Registration failed. Please check your details.";
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Registration failed. Please check your details.",
+      );
       toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -146,6 +146,8 @@ const Signup = () => {
                   autoComplete="new-password"
                   value={formData.password}
                   onChange={handleChange}
+                  minLength={8}
+                  maxLength={72}
                   className="w-72 p-3 pr-16 bg-gray-400/35 text-black text-lg rounded-md shadow-lg shadow-inherit outline-none tracking-wide focus:ring-2 focus:ring-[#344b75]/40 transition-all"
                   required
                 />
@@ -153,10 +155,16 @@ const Signup = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="text-gray-500 hover:text-gray-700 cursor-pointer focus:outline-none"
                   >
-                    {showPassword ? <FaEyeSlash className="text-lg" /> : <FaEye className="text-lg" />}
+                    {showPassword ? (
+                      <FaEyeSlash className="text-lg" />
+                    ) : (
+                      <FaEye className="text-lg" />
+                    )}
                   </button>
                   <FaLock className="text-base text-gray-500 pointer-events-none" />
                 </div>
@@ -184,7 +192,7 @@ const Signup = () => {
         <div className="w-1/2 h-full rounded-4xl bg-[#344b75] text-white flex flex-col justify-center items-center gap-20 px-8 text-center">
           <div className="flex flex-col justify-center items-center gap-4">
             <h1 className="text-4xl font-extrabold tracking-wider">
-              Hello Chief!!
+              Heyy There!!
             </h1>
             <div className="text-lg tracking-wide text-gray-200">
               It`s Nice to have you with us.

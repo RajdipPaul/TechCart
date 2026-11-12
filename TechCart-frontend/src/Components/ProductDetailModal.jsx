@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import useAuth from "../context/useAuth";
 import useCart from "../context/useCart";
+import { getProductImageUrl, getApiErrorMessage } from "../services/api";
 
 const ProductDetailModal = ({ product, isOpen, onClose }) => {
   const navigate = useNavigate();
@@ -28,6 +29,8 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
 
   if (!isOpen || !product) return null;
 
+  const productId = product.pId ?? product.pid;
+
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       toast.error("Please log in or create an account to add items to your cart!", {
@@ -39,13 +42,13 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
     }
 
     try {
-      await addToCart(product.pId, 1);
-      toast.success(`Added ${product.pName} to your cart!`, {
+      await addToCart(productId, 1);
+      toast.success(`Added ${product.pName || product.name} to your cart!`, {
         icon: "🛒",
       });
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to add product to cart");
+      toast.error(getApiErrorMessage(err, "Failed to add product to cart"));
     }
   };
 
@@ -60,14 +63,14 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
     }
 
     try {
-      await addToCart(product.pId, 1);
+      await addToCart(productId, 1);
       toast.success(`Item added! Proceeding to cart...`, {
         icon: "⚡",
       });
       onClose();
       navigate("/cart");
     } catch (err) {
-      toast.error(err.response?.data?.message || "Checkout initiation failed");
+      toast.error(getApiErrorMessage(err, "Checkout initiation failed"));
     }
   };
 
@@ -105,8 +108,8 @@ const ProductDetailModal = ({ product, isOpen, onClose }) => {
             <div className="w-full md:w-1/2 flex flex-col items-center">
               <div className="w-full aspect-square max-h-[420px] rounded-2xl border-2 border-[#344b75]/40 p-2 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm relative group">
                 <img
-                  src={product.imageUrl}
-                  alt={product.pName}
+                  src={getProductImageUrl(product.imageUrl)}
+                  alt={product.pName || "Product"}
                   className="w-full h-full object-cover rounded-xl transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="absolute bottom-3 left-3 bg-[#344b75] text-white px-3 py-1 rounded-lg text-sm font-medium border border-white/20 flex items-center gap-1.5 shadow-md">

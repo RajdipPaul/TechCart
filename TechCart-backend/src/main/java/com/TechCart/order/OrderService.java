@@ -560,4 +560,21 @@ public class OrderService {
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
+
+    @Transactional
+    public void cancelOrDeleteOrder(
+            Long orderId,
+            Authentication authentication) {
+
+        User user = getAuthenticatedUser(authentication);
+        Order order = getUserOrder(orderId, user.getUserId());
+
+        if ("PAID".equalsIgnoreCase(order.getPaymentStatus())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Paid orders cannot be deleted.");
+        }
+
+        orderRepository.delete(order);
+    }
 }

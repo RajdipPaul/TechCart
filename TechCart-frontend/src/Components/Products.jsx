@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "motion/react";
-import { FaSearch, FaCheck, FaTimes } from "react-icons/fa";
+import { FaSearch, FaCheck, FaTimes, FaExclamationTriangle, FaRedo } from "react-icons/fa";
 import Navbar from "./Navbar";
 import ProductDetailModal from "./ProductDetailModal";
-import { productAPI } from "../services/api";
+import { productAPI, getProductImageUrl, getApiErrorMessage } from "../services/api";
 
 const PRICE_FILTERS = [
   { id: "p50000", label: "more than 50000", check: (p) => p.price >= 50000 },
@@ -18,25 +18,50 @@ const CATEGORIES = ["Laptops", "Smartphones", "Tablets", "Pc", "All"];
 const Products = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedPriceRanges, setSelectedPriceRanges] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // Fetch products from API on mount
+  // Fetch products from live API
+  const fetchProducts = useCallback(async (isRetry = false) => {
+    if (isRetry) {
+      setLoading(true);
+    }
+    setError(null);
+    try {
+      const data = await productAPI.getAll();
+      setProducts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error("Failed to load products:", err);
+      setError(getApiErrorMessage(err, "Failed to load products from server."));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        const data = await productAPI.getAll();
-        setProducts(data);
-      } catch (err) {
-        console.error("Failed to load products:", err);
-      } finally {
-        setLoading(false);
-      }
+    let isMounted = true;
+    productAPI
+      .getAll()
+      .then((data) => {
+        if (isMounted) {
+          setProducts(Array.isArray(data) ? data : []);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error("Failed to load products:", err);
+          setError(getApiErrorMessage(err, "Failed to load products from server."));
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
     };
-    fetchProducts();
   }, []);
 
   // Handle Category filter toggle
@@ -216,8 +241,22 @@ const Products = () => {
             </div>
           </div>
 
-          {/* Loading Skeleton / Empty State */}
-          {loading ? (
+          {/* Error / Loading Skeleton / Empty State */}
+          {error && !loading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center gap-4 bg-red-50/80 rounded-3xl border-2 border-red-200 text-red-900 shadow-sm p-6">
+              <FaExclamationTriangle className="text-4xl text-red-500" />
+              <h3 className="text-xl font-bold">Unable to Load Products</h3>
+              <p className="text-sm text-red-700 max-w-md">{error}</p>
+              <button
+                type="button"
+                onClick={() => fetchProducts(true)}
+                className="mt-2 px-6 py-2.5 bg-[#344b75] hover:bg-[#293b5d] text-white rounded-xl text-sm font-semibold transition-colors shadow-md flex items-center gap-2 cursor-pointer"
+              >
+                <FaRedo className="text-xs" />
+                <span>Retry</span>
+              </button>
+            </div>
+          ) : loading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
               {[...Array(8)].map((_, idx) => (
                 <div
@@ -247,53 +286,58 @@ const Products = () => {
           ) : (
             /* Product Cards Grid (4 columns on desktop matching Pic-1) */
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-              {filteredProducts.map((product) => (
-                <motion.div
-                  key={product.pId}
-                  whileHover={{ y: -5 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={() => setSelectedProduct(product)}
-                  className="bg-white border-2 border-transparent hover:border-[#344b75]/50 rounded-3xl overflow-hidden flex flex-col justify-between cursor-pointer shadow-md hover:shadow-xl transition-all duration-200 group"
-                >
-                  {/* Upper Half: Image with "In Stock" Pill at bottom */}
-                  <div className="relative w-full aspect-[4/3] bg-slate-50 overflow-hidden border-b border-gray-100 flex items-center justify-center p-2">
-                    <img
-                      src={product.imageUrl}
-                      alt={product.pName}
-                      className="w-full h-full object-cover rounded-2xl transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    {/* In Stock Badge inside Image at Bottom (Matching Pic-1) */}
-                    <div className="absolute bottom-3 left-3 bg-[#344b75] text-white px-2.5 py-0.5 rounded-md text-[11px] font-medium shadow-md">
-                      In Stock: {product.stockQuantity}
+              {filteredProducts.map((product) => {
+                const productId = product.pId ?? product.pid;
+                const productName = product.pName ?? product.pname ?? product.name;
+                const stock = product.stockQuantity ?? product.stock_quantity ?? 0;
+                return (
+                  <motion.div
+                    key={productId}
+                    whileHover={{ y: -5 }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => setSelectedProduct(product)}
+                    className="bg-white border-2 border-transparent hover:border-[#344b75]/50 rounded-3xl overflow-hidden flex flex-col justify-between cursor-pointer shadow-md hover:shadow-xl transition-all duration-200 group"
+                  >
+                    {/* Upper Half: Image with "In Stock" Pill at bottom */}
+                    <div className="relative w-full aspect-[4/3] bg-slate-50 overflow-hidden border-b border-gray-100 flex items-center justify-center p-2">
+                      <img
+                        src={getProductImageUrl(product.imageUrl)}
+                        alt={productName}
+                        className="w-full h-full object-cover rounded-2xl transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      {/* In Stock Badge inside Image at Bottom (Matching Pic-1) */}
+                      <div className="absolute bottom-3 left-3 bg-[#344b75] text-white px-2.5 py-0.5 rounded-md text-[11px] font-medium shadow-md">
+                        In Stock: {stock}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Lower Half: Product Info (Name, Description, Pricing) */}
-                  <div className="p-4 flex flex-col gap-2">
-                    {/* Product Name */}
-                    <h3 className="text-lg font-bold text-[#1e293b] tracking-wide truncate group-hover:text-[#344b75] transition-colors">
-                      {product.pName}
-                    </h3>
+                    {/* Lower Half: Product Info (Name, Description, Pricing) */}
+                    <div className="p-4 flex flex-col gap-2">
+                      {/* Product Name */}
+                      <h3 className="text-lg font-bold text-[#1e293b] tracking-wide truncate group-hover:text-[#344b75] transition-colors">
+                        {productName}
+                      </h3>
 
-                    {/* Product Description */}
-                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
-                      {product.description}
-                    </p>
+                      {/* Product Description */}
+                      <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                        {product.description}
+                      </p>
 
-                    {/* Product Pricing */}
-                    <div className="pt-2 text-xl font-extrabold text-[#344b75] flex items-baseline gap-1">
-                      <span>₹</span>
-                      <span>
-                        {Number(product.price).toLocaleString("en-IN", {
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                        })}
-                      </span>
+                      {/* Product Pricing */}
+                      <div className="pt-2 text-xl font-extrabold text-[#344b75] flex items-baseline gap-1">
+                        <span>₹</span>
+                        <span>
+                          {Number(product.price).toLocaleString("en-IN", {
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 0,
+                          })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </main>

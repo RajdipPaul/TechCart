@@ -7,6 +7,10 @@ import Signup from "./Components/Signup";
 import Products from "./Components/Products";
 import Cart from "./Components/Cart";
 import AIShopkeeper from "./Components/AIShopkeeper";
+import PaymentSuccess from "./Components/PaymentSuccess";
+import PaymentCancel from "./Components/PaymentCancel";
+import MyOrders from "./Components/MyOrders";
+import ContactUs from "./Components/ContactUs";
 
 const App = () => {
   return (
@@ -42,8 +46,12 @@ const App = () => {
         <Route path="/products" element={<Products />} />
         <Route path="/ai-shopkeeper" element={<AIShopkeeper />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/orders" element={<MyOrders />} />
+        <Route path="/contact" element={<ContactUs />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/payment/success" element={<PaymentSuccess />} />
+        <Route path="/payment/cancel" element={<PaymentCancel />} />
       </Routes>
     </div>
   );

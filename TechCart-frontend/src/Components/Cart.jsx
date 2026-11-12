@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import {
@@ -11,12 +12,16 @@ import {
 import { FaPaypal } from "react-icons/fa6";
 import { toast } from "react-hot-toast";
 import Navbar from "./Navbar";
+import AddressModal from "./AddressModal";
 import useAuth from "../context/useAuth";
 import useCart from "../context/useCart";
+import { getProductImageUrl, getApiErrorMessage, orderAPI } from "../services/api";
 
 const Cart = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
   const {
     cart,
     loading,
@@ -27,13 +32,30 @@ const Cart = () => {
     clearCart,
   } = useCart();
 
+  const handleUpdateQuantity = async (itemId, newQuantity) => {
+    try {
+      await updateQuantity(itemId, newQuantity);
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to update quantity"));
+    }
+  };
+
+  const handleRemoveItem = async (itemId) => {
+    try {
+      await removeFromCart(itemId);
+      toast.success("Item removed from cart");
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, "Failed to remove item"));
+    }
+  };
+
   const handleClearCart = async () => {
     if (window.confirm("Are you sure you want to remove all items from your cart?")) {
       try {
         await clearCart();
         toast.success("Cart cleared");
       } catch (err) {
-        toast.error("Failed to clear cart: " + err.message);
+        toast.error(getApiErrorMessage(err, "Failed to clear cart"));
       }
     }
   };
@@ -44,10 +66,54 @@ const Cart = () => {
       navigate("/login", { state: { from: "/cart" } });
       return;
     }
-    toast.success("Proceeding to PayPal Sandbox checkout...", {
-      icon: "💳",
-    });
-    // In next phase, trigger order creation & PayPal flow
+    if (!cart?.items || cart.items.length === 0) {
+      toast.error("Your cart is empty! Add products before checking out.");
+      return;
+    }
+    setIsAddressModalOpen(true);
+  };
+
+  const handleConfirmAddressAndCheckout = async (addressData) => {
+    setIsCheckingOut(true);
+    try {
+      // 1. Send address to DB to store via createOrder
+      const order = await orderAPI.createOrder(addressData);
+      sessionStorage.setItem("techcart_pending_order_id", String(order.orderId));
+      sessionStorage.setItem("techcart_pending_order_number", order.orderNumber);
+
+      toast.success(
+        `Order #${order.orderNumber} created! Address saved to database.`,
+        { icon: "📦" }
+      );
+
+      // 2. Initialize PayPal Sandbox checkout
+      try {
+        const paypalData = await orderAPI.createPayPalOrder(order.orderId);
+        if (paypalData?.approvalUrl) {
+          toast.loading("Redirecting to PayPal Sandbox checkout...", {
+            duration: 3000,
+          });
+          setIsAddressModalOpen(false);
+          window.location.href = paypalData.approvalUrl;
+          return;
+        }
+      } catch (paypalErr) {
+        console.warn("PayPal checkout initialization note:", paypalErr);
+        toast.success(
+          `Order #${order.orderNumber} placed successfully with status PENDING.`,
+          { duration: 5000 }
+        );
+      }
+
+      setIsAddressModalOpen(false);
+    } catch (err) {
+      console.error("Order creation error:", err);
+      toast.error(
+        getApiErrorMessage(err, "Failed to save address and create order")
+      );
+    } finally {
+      setIsCheckingOut(false);
+    }
   };
 
   // If user is not authenticated, show friendly sign-in prompt
@@ -149,82 +215,96 @@ const Cart = () => {
           <div className="w-full flex flex-col lg:flex-row gap-8 items-start">
             {/* Left Column: Items List */}
             <div className="w-full lg:w-2/3 flex flex-col gap-4">
-              {cart.items.map((item) => (
-                <motion.div
-                  key={item.cItemsId}
-                  layout
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-md flex flex-col sm:flex-row items-center gap-5 justify-between"
-                >
-                  {/* Product Thumbnail & Details */}
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl border border-gray-200 overflow-hidden bg-slate-50 shrink-0 p-1">
-                      <img
-                        src={item.imageUrl}
-                        alt={item.pName}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-[#344b75] bg-[#344b75]/10 px-2 py-0.5 rounded w-fit">
-                        {item.brand || item.category}
-                      </span>
-                      <h3 className="text-lg font-bold text-[#1e293b] line-clamp-1">
-                        {item.pName}
-                      </h3>
-                      <div className="text-sm font-semibold text-gray-500">
-                        ₹{Number(item.price).toLocaleString("en-IN")} each
+              {cart.items.map((item) => {
+                const itemId = item.cItemsId ?? item.citemsId;
+                const isItemUSD = (item.currency || cart?.currency || "").toUpperCase() === "USD";
+                const itemSymbol = isItemUSD ? "$" : "₹";
+                return (
+                  <motion.div
+                    key={itemId}
+                    layout
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="bg-white rounded-2xl p-4 sm:p-5 border border-gray-200 shadow-md flex flex-col sm:flex-row items-center gap-5 justify-between"
+                  >
+                    {/* Product Thumbnail & Details */}
+                    <div className="flex items-center gap-4 w-full sm:w-auto">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl border border-gray-200 overflow-hidden bg-slate-50 shrink-0 p-1">
+                        <img
+                          src={getProductImageUrl(item.imageUrl)}
+                          alt={item.pName}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#344b75] bg-[#344b75]/10 px-2 py-0.5 rounded w-fit">
+                          {item.brand || item.category}
+                        </span>
+                        <h3 className="text-lg font-bold text-[#1e293b] line-clamp-1">
+                          {item.pName}
+                        </h3>
+                        <div className="text-sm font-semibold text-gray-500">
+                          {itemSymbol}{Number(item.price).toLocaleString(isItemUSD ? "en-US" : "en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })} each
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Quantity Controls & Subtotal */}
-                  <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                    {/* Quantity Buttons */}
-                    <div className="flex items-center border border-gray-300 rounded-xl bg-slate-50 overflow-hidden shadow-inner">
+                    {/* Quantity Controls & Subtotal */}
+                    <div className="flex items-center justify-between sm:justify-end gap-6 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                      {/* Quantity Buttons */}
+                      <div className="flex items-center border border-gray-300 rounded-xl bg-slate-50 overflow-hidden shadow-inner">
+                        <button
+                          type="button"
+                          aria-label="Decrease quantity"
+                          onClick={() => {
+                            if (item.quantity <= 1) {
+                              handleRemoveItem(itemId);
+                            } else {
+                              handleUpdateQuantity(itemId, item.quantity - 1);
+                            }
+                          }}
+                          className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+                        >
+                          <MdRemove className="text-sm" />
+                        </button>
+                        <span className="w-9 text-center font-bold text-sm text-[#1e293b]">
+                          {item.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Increase quantity"
+                          onClick={() => handleUpdateQuantity(itemId, item.quantity + 1)}
+                          className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+                        >
+                          <MdAdd className="text-sm" />
+                        </button>
+                      </div>
+
+                      {/* Line Subtotal */}
+                      <div className="text-lg font-extrabold text-[#344b75] min-w-[100px] text-right">
+                        {itemSymbol}{Number(item.subtotal).toLocaleString(isItemUSD ? "en-US" : "en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </div>
+
+                      {/* Delete Item Button */}
                       <button
                         type="button"
-                        aria-label="Decrease quantity"
-                        onClick={() => updateQuantity(item.cItemsId, item.quantity - 1)}
-                        className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+                        aria-label="Remove item"
+                        onClick={() => handleRemoveItem(itemId)}
+                        className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
                       >
-                        <MdRemove className="text-sm" />
-                      </button>
-                      <span className="w-9 text-center font-bold text-sm text-[#1e293b]">
-                        {item.quantity}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label="Increase quantity"
-                        onClick={() => updateQuantity(item.cItemsId, item.quantity + 1)}
-                        className="w-8 h-8 flex items-center justify-center text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
-                      >
-                        <MdAdd className="text-sm" />
+                        <MdDeleteOutline className="text-xl" />
                       </button>
                     </div>
-
-                    {/* Line Subtotal */}
-                    <div className="text-lg font-extrabold text-[#344b75] min-w-[100px] text-right">
-                      ₹{Number(item.subtotal).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </div>
-
-                    {/* Delete Item Button */}
-                    <button
-                      type="button"
-                      aria-label="Remove item"
-                      onClick={() => removeFromCart(item.cItemsId)}
-                      className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
-                    >
-                      <MdDeleteOutline className="text-xl" />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
 
             {/* Right Column: Order Summary Card */}
@@ -242,7 +322,8 @@ const Cart = () => {
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
                   <span className="font-semibold text-[#1e293b]">
-                    ₹{Number(totalAmount).toLocaleString("en-IN", {
+                    {(cart?.currency || "").toUpperCase() === "USD" ? "$" : "₹"}
+                    {Number(totalAmount).toLocaleString((cart?.currency || "").toUpperCase() === "USD" ? "en-US" : "en-IN", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
                     })}
@@ -263,13 +344,16 @@ const Cart = () => {
                   <span className="text-lg font-bold text-[#1e293b]">Total Amount</span>
                   <div className="text-right">
                     <span className="text-2xl font-extrabold text-[#344b75]">
-                      ₹{Number(totalAmount).toLocaleString("en-IN", {
+                      {(cart?.currency || "").toUpperCase() === "USD" ? "$" : "₹"}
+                      {Number(totalAmount).toLocaleString((cart?.currency || "").toUpperCase() === "USD" ? "en-US" : "en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
                     </span>
-                    <span className="block text-[11px] text-gray-500">
-                      INR (Indian Rupees)
+                    <span className="block text-[11px] text-gray-500 font-medium">
+                      {(cart?.currency || "").toUpperCase() === "USD"
+                        ? `USD (approx. ₹${Math.round(Number(totalAmount) * 93.93).toLocaleString("en-IN")})`
+                        : "INR (Indian Rupees)"}
                     </span>
                   </div>
                 </div>
@@ -296,6 +380,14 @@ const Cart = () => {
           </div>
         )}
       </main>
+
+      {/* Shipping Address Modal Matching Hand-Drawn Spec */}
+      <AddressModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        onConfirm={handleConfirmAddressAndCheckout}
+        isSubmitting={isCheckingOut}
+      />
     </div>
   );
 };

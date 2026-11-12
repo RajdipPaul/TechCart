@@ -4,6 +4,7 @@ import { FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import useAuth from "../context/useAuth";
+import { getApiErrorMessage } from "../services/api";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -46,11 +47,10 @@ const Login = () => {
       toast.success(`Welcome back, ${displayName}!`);
       navigate("/");
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        err.message ||
-        "Invalid email or password. Please try again.";
+      const errorMsg = getApiErrorMessage(
+        err,
+        "Invalid email or password. Please try again.",
+      );
       toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
@@ -61,12 +61,13 @@ const Login = () => {
   const handleQuickDemoLogin = async () => {
     setIsSubmitting(true);
     try {
-      const result = await login("sima@gmail.com", "Pass@123");
+      const result = await login("sima@gmail.com", "Password@123");
       const displayName = result.user?.fullName || "Sima Chakraborty";
-      toast.success(`Welcome back, ${displayName}! (Demo Account)`);
+      toast.success(`Welcome back, ${displayName}!`);
       navigate("/");
     } catch (err) {
-      toast.error("Demo login error: " + err.message);
+      const errorMsg = getApiErrorMessage(err, "Demo login failed.");
+      toast.error(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -80,7 +81,7 @@ const Login = () => {
         <div className="w-1/2 h-full rounded-4xl bg-[#344b75] text-white flex flex-col justify-center items-center gap-14 px-8 text-center">
           <div className="flex flex-col justify-center items-center gap-4">
             <h1 className="text-3xl font-extrabold tracking-wider">
-              Welcome back!! Sir-jii!!
+              Welcome back!!
             </h1>
             <div className="text-lg tracking-wide text-gray-200">
               It`s good to see you again.
@@ -102,9 +103,7 @@ const Login = () => {
 
         {/* Login form */}
         <div className="w-1/2 h-full flex flex-col justify-center items-center text-black gap-6 px-6">
-          <h2 className="text-4xl font-extrabold tracking-wider">
-            LOG IN
-          </h2>
+          <h2 className="text-4xl font-extrabold tracking-wider">LOG IN</h2>
           <form
             onSubmit={handleSubmit}
             className="flex flex-col justify-center items-center gap-5 w-full"
@@ -145,10 +144,16 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
                     className="text-gray-500 hover:text-gray-700 cursor-pointer focus:outline-none"
                   >
-                    {showPassword ? <FaEyeSlash className="text-lg" /> : <FaEye className="text-lg" />}
+                    {showPassword ? (
+                      <FaEyeSlash className="text-lg" />
+                    ) : (
+                      <FaEye className="text-lg" />
+                    )}
                   </button>
                   <FaLock className="text-base text-gray-500 pointer-events-none" />
                 </div>
@@ -170,21 +175,6 @@ const Login = () => {
                 "Login"
               )}
             </button>
-
-            {/* Quick Demo Login Option */}
-            <div className="flex flex-col items-center gap-1.5 w-72 pt-1 border-t border-gray-300">
-              <button
-                type="button"
-                onClick={handleQuickDemoLogin}
-                disabled={isSubmitting}
-                className="w-full py-2 px-3 bg-emerald-600/90 hover:bg-emerald-600 text-white rounded-md text-sm font-semibold flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all disabled:opacity-60"
-              >
-                <span>⚡ One-Click Demo Login</span>
-              </button>
-              <span className="text-[11px] text-gray-500 font-sans text-center">
-                Pre-configured: <span className="font-semibold text-gray-700">sima@gmail.com</span> / Pass@123
-              </span>
-            </div>
           </form>
         </div>
       </div>

@@ -196,7 +196,8 @@ public class PayPalService {
         Map<String, Object> experienceContext = Map.of(
                 "return_url", returnUrl,
                 "cancel_url", cancelUrl,
-                "user_action", "PAY_NOW"
+                "user_action", "PAY_NOW",
+                "shipping_preference", "NO_SHIPPING"
         );
 
         Map<String, Object> paymentSource = Map.of(

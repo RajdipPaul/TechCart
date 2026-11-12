@@ -103,8 +103,16 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("user", JSON.stringify(profile));
       return { token: receivedToken, user: profile };
     } catch (profileError) {
-      console.warn("Login token acquired but failed to load profile:", profileError);
-      return { token: receivedToken, user: null };
+      console.warn("Login token acquired, using payload user info:", profileError);
+      const fallbackUser = {
+        userId: data.userId,
+        fullName: data.fullName,
+        email: data.email,
+        phoneNumber: data.phoneNumber || "",
+      };
+      setUser(fallbackUser);
+      localStorage.setItem("user", JSON.stringify(fallbackUser));
+      return { token: receivedToken, user: fallbackUser };
     }
   };
 

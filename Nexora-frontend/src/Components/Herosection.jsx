@@ -78,7 +78,7 @@ const Herosection = () => {
               transition={{ type: "spring", stiffness: 350, damping: 20 }}
             >
               <Link
-                to="/"
+                to="/products"
                 className="px-8 py-4 bg-transparent border-2 border-[#1e293b] hover:border-[#344b75] text-[#1e293b] hover:text-white hover:bg-[#344b75] text-xl font-semibold rounded-2xl shadow-md transition-all duration-300 flex items-center gap-3 cursor-pointer"
               >
                 View Products

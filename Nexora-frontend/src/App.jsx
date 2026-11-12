@@ -4,10 +4,12 @@ import { Toaster } from "react-hot-toast";
 import Home from "./Components/Home";
 import Login from "./Components/Login";
 import Signup from "./Components/Signup";
+import Products from "./Components/Products";
+import Cart from "./Components/Cart";
 
 const App = () => {
   return (
-    <div className="w-screen h-screen min-h-screen bg-white">
+    <div className="w-screen min-h-screen bg-[#F0EAD6]">
       <Toaster
         position="top-right"
         toastOptions={{
@@ -18,6 +20,7 @@ const App = () => {
             fontFamily: "var(--font-outfit), sans-serif",
             borderRadius: "0.5rem",
             boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.2)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
           },
           success: {
             iconTheme: {
@@ -35,6 +38,8 @@ const App = () => {
       />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/products" element={<Products />} />
+        <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
       </Routes>

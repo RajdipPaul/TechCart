@@ -1,5 +1,5 @@
 import axios from "axios";
-import { mockAuthService, MOCK_PRODUCTS } from "../mock/mockData";
+import { mockAuthService, mockCartService, MOCK_PRODUCTS } from "../mock/mockData";
 
 // 1. Backend Base URL Configuration
 export const API_BASE_URL =
@@ -257,24 +257,64 @@ export const conversationAPI = {
 // 9. Shopping Cart API Endpoints
 export const cartAPI = {
   getCart: async () => {
-    const response = await api.get("/api/cart");
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockCartService.getCart();
+    }
+    try {
+      const response = await api.get("/api/cart");
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockCartService.getCart();
+      throw err;
+    }
   },
   addItem: async (pId, quantity = 1) => {
-    const response = await api.post("/api/cart/items", { pId, quantity });
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockCartService.addItem(pId, quantity);
+    }
+    try {
+      const response = await api.post("/api/cart/items", { pId, quantity });
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockCartService.addItem(pId, quantity);
+      throw err;
+    }
   },
   updateItemQuantity: async (cItemsId, quantity) => {
-    const response = await api.put(`/api/cart/items/${cItemsId}`, { quantity });
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockCartService.updateItemQuantity(cItemsId, quantity);
+    }
+    try {
+      const response = await api.put(`/api/cart/items/${cItemsId}`, { quantity });
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockCartService.updateItemQuantity(cItemsId, quantity);
+      throw err;
+    }
   },
   removeItem: async (cItemsId) => {
-    const response = await api.delete(`/api/cart/items/${cItemsId}`);
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockCartService.removeItem(cItemsId);
+    }
+    try {
+      const response = await api.delete(`/api/cart/items/${cItemsId}`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockCartService.removeItem(cItemsId);
+      throw err;
+    }
   },
   clearCart: async () => {
-    const response = await api.delete("/api/cart/items");
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockCartService.clearCart();
+    }
+    try {
+      const response = await api.delete("/api/cart/items");
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockCartService.clearCart();
+      throw err;
+    }
   },
 };
 

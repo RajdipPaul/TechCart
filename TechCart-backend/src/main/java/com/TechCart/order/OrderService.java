@@ -2,12 +2,14 @@
 package com.TechCart.order;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,9 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final PayPalService paypalService;
+
+    @Value("${paypal.inr-per-usd}")
+    private BigDecimal inrPerUsd;
 
     public OrderService(
             OrderRepository orderRepository,
@@ -103,7 +108,6 @@ public class OrderService {
 
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalAmount = BigDecimal.ZERO;
-        String currency = null;
 
         for (CartItem cartItem : cartItems) {
 
@@ -131,45 +135,30 @@ public class OrderService {
                         "Insufficient stock for " + product.getPName());
             }
 
-            if (product.getPrice() == null
-                    || product.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            // Use the same USD conversion as CartService.
+            BigDecimal usdPrice = convertToUsd(product);
 
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Invalid price for " + product.getPName());
-            }
-
-            if (isBlank(product.getCurrency())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "Currency is missing for " + product.getPName());
-            }
-
-            if (currency == null) {
-                currency = product.getCurrency();
-            } else if (!currency.equalsIgnoreCase(product.getCurrency())) {
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_REQUEST,
-                        "All products in an order must use the same currency.");
-            }
-
-            BigDecimal subtotal = product.getPrice()
-                    .multiply(BigDecimal.valueOf(quantity));
+            BigDecimal subtotal = usdPrice
+                    .multiply(BigDecimal.valueOf(quantity))
+                    .setScale(2, RoundingMode.HALF_UP);
 
             OrderItem orderItem = new OrderItem();
+
             orderItem.setOrder(order);
             orderItem.setProduct(product);
             orderItem.setPName(product.getPName());
             orderItem.setQuantity(quantity);
-            orderItem.setUnitPrice(product.getPrice());
+            orderItem.setUnitPrice(usdPrice);
             orderItem.setSubtotal(subtotal);
 
             orderItems.add(orderItem);
             totalAmount = totalAmount.add(subtotal);
         }
 
-        order.setCurrency(currency);
-        order.setTotalAmount(totalAmount);
+        // All order amounts are stored in USD.
+        order.setCurrency("USD");
+        order.setTotalAmount(
+                totalAmount.setScale(2, RoundingMode.HALF_UP));
         order.setOrderItems(orderItems);
 
         Order savedOrder = orderRepository.save(order);
@@ -225,10 +214,8 @@ public class OrderService {
             }
         }
 
-        // Convert the INR order total into USD for PayPal.
-        BigDecimal paypalAmount = paypalService.convertInrToUsd(
-                order.getTotalAmount(),
-                order.getCurrency());
+        // Order total is already in USD. Do not convert it again.
+        BigDecimal paypalAmount = order.getTotalAmount();
 
         Map<String, Object> paypalResponse =
                 paypalService.createPayPalOrder(
@@ -249,8 +236,11 @@ public class OrderService {
         Object linksObject = paypalResponse.get("links");
 
         if (linksObject instanceof List<?> links) {
+
             for (Object linkObject : links) {
+
                 if (linkObject instanceof Map<?, ?> link) {
+
                     if ("approve".equals(link.get("rel"))
                             || "payer-action".equals(link.get("rel"))) {
 
@@ -276,7 +266,7 @@ public class OrderService {
                 "paypalOrderId", paypalOrderId,
                 "approvalUrl", approvalUrl,
                 "techCartAmount", order.getTotalAmount(),
-                "techCartCurrency", order.getCurrency(),
+                "techCartCurrency", "USD",
                 "paypalAmount", paypalAmount,
                 "paypalCurrency", "USD",
                 "paymentStatus", order.getPaymentStatus()
@@ -295,7 +285,7 @@ public class OrderService {
         User user = getAuthenticatedUser(authentication);
         Order order = getUserOrder(orderId, user.getUserId());
 
-        // Prevent duplicate stock deduction.
+        // Prevent duplicate stock deduction on repeated requests.
         if ("PAID".equalsIgnoreCase(order.getPaymentStatus())) {
             return convertToResponse(order);
         }
@@ -317,10 +307,19 @@ public class OrderService {
         try {
             captureResponse = paypalService.capturePayPalOrder(
                     order.getPaypalOrderId());
+
         } catch (Exception exception) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "Unable to capture PayPal payment. Please check payment status before retrying.");
+        }
+
+        // Verify the response belongs to the stored PayPal order.
+        if (!order.getPaypalOrderId().equals(captureResponse.get("id"))) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "PayPal order ID verification failed.");
         }
 
         String paypalStatus = (String) captureResponse.get("status");
@@ -331,17 +330,20 @@ public class OrderService {
                     "PayPal payment has not been completed.");
         }
 
-        // Extract the actual captured payment details.
+        // Extract captured payment details.
         String captureId = null;
         String captureStatus = null;
         String capturedAmount = null;
         String capturedCurrency = null;
+        String referenceId = null;
 
         Object purchaseUnitsObject = captureResponse.get("purchase_units");
 
         if (purchaseUnitsObject instanceof List<?> purchaseUnits
                 && !purchaseUnits.isEmpty()
                 && purchaseUnits.get(0) instanceof Map<?, ?> purchaseUnit) {
+
+            referenceId = (String) purchaseUnit.get("reference_id");
 
             Object paymentsObject = purchaseUnit.get("payments");
 
@@ -359,12 +361,20 @@ public class OrderService {
                     Object amountObject = capture.get("amount");
 
                     if (amountObject instanceof Map<?, ?> amount) {
+
                         capturedAmount = (String) amount.get("value");
                         capturedCurrency =
                                 (String) amount.get("currency_code");
                     }
                 }
             }
+        }
+
+        // Verify that PayPal returned the correct TechCart order.
+        if (!order.getOrderNumber().equals(referenceId)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "PayPal order reference verification failed.");
         }
 
         if (isBlank(captureId)
@@ -375,28 +385,30 @@ public class OrderService {
                     "PayPal capture details could not be verified.");
         }
 
-        // Convert the original INR total using the same configured rate.
-        BigDecimal expectedPayPalAmount = paypalService.convertInrToUsd(
-                order.getTotalAmount(),
-                order.getCurrency());
-
         BigDecimal actualAmount;
 
         try {
+            if (isBlank(capturedAmount)) {
+                throw new NumberFormatException();
+            }
+
             actualAmount = new BigDecimal(capturedAmount);
-        } catch (Exception exception) {
+
+        } catch (NumberFormatException exception) {
+
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
                     "Invalid payment amount returned by PayPal.");
         }
 
-        // Verify the actual captured USD amount and currency.
-        if (actualAmount.compareTo(expectedPayPalAmount) != 0
-                || !"USD".equalsIgnoreCase(capturedCurrency)) {
+        // Order total and PayPal capture must both be in USD.
+        if (actualAmount.compareTo(order.getTotalAmount()) != 0
+                || !"USD".equalsIgnoreCase(capturedCurrency)
+                || !"USD".equalsIgnoreCase(order.getCurrency())) {
 
             throw new ResponseStatusException(
                     HttpStatus.BAD_GATEWAY,
-                    "Captured payment amount or currency does not match the expected PayPal amount.");
+                    "Captured payment amount or currency does not match the expected order amount.");
         }
 
         // Recheck stock before deducting it.
@@ -423,7 +435,7 @@ public class OrderService {
             productRepository.save(product);
         }
 
-        // Mark the order as paid only after PayPal verification.
+        // Mark order paid only after PayPal verification.
         order.setPaypalCaptureId(captureId);
         order.setPaymentStatus("PAID");
         order.setOrderStatus("CONFIRMED");
@@ -431,7 +443,7 @@ public class OrderService {
 
         Order savedOrder = orderRepository.save(order);
 
-        // Clear the cart after successful payment.
+        // Clear the active cart after successful payment.
         Cart cart = cartRepository
                 .findByUserUserIdAndStatus(user.getUserId(), "ACTIVE")
                 .orElse(null);
@@ -479,9 +491,56 @@ public class OrderService {
     // HELPER METHODS
     // ------------------------------------------------
 
+    private BigDecimal convertToUsd(Product product) {
+
+        BigDecimal price = product.getPrice();
+
+        if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Invalid price for " + product.getPName());
+        }
+
+        String currency = product.getCurrency();
+
+        if (isBlank(currency)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Currency is missing for " + product.getPName());
+        }
+
+        switch (currency.trim().toUpperCase()) {
+
+            case "USD":
+                return price.setScale(2, RoundingMode.HALF_UP);
+
+            case "INR":
+
+                if (inrPerUsd == null
+                        || inrPerUsd.compareTo(BigDecimal.ZERO) <= 0) {
+
+                    throw new ResponseStatusException(
+                            HttpStatus.INTERNAL_SERVER_ERROR,
+                            "Invalid INR to USD conversion rate.");
+                }
+
+                return price.divide(
+                        inrPerUsd,
+                        2,
+                        RoundingMode.HALF_UP);
+
+            default:
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "Unsupported product currency: " + currency);
+        }
+    }
+
     private User getAuthenticatedUser(Authentication authentication) {
 
-        if (authentication == null || authentication.getName() == null) {
+        if (authentication == null
+                || authentication.getName() == null) {
+
             throw new ResponseStatusException(
                     HttpStatus.UNAUTHORIZED,
                     "Authentication required.");
@@ -503,6 +562,7 @@ public class OrderService {
     }
 
     private String generateOrderNumber() {
+
         return "TC-" + UUID.randomUUID()
                 .toString()
                 .replace("-", "")

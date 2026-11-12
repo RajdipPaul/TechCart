@@ -687,3 +687,240 @@ export const mockCartService = {
     return cart;
   },
 };
+
+// ==========================================================================
+// Mock Conversation & Messages Service (AI Shopkeeper)
+// Matches database `conversations` and `messages` tables
+// ==========================================================================
+const getConversationStorageKey = () => {
+  try {
+    const userStr = localStorage.getItem(CURRENT_USER_KEY);
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      if (user && user.userId) {
+        return `techcart_mock_conversations_user_${user.userId}`;
+      }
+    }
+    return "techcart_mock_conversations_user_default";
+  } catch {
+    return "techcart_mock_conversations_user_default";
+  }
+};
+
+const getStoredConversations = () => {
+  const key = getConversationStorageKey();
+  try {
+    const data = localStorage.getItem(key);
+    if (!data) {
+      const defaultConversation = [
+        {
+          converId: 1,
+          title: "AI Shopkeeper Consultation",
+          status: "ACTIVE",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      ];
+      localStorage.setItem(key, JSON.stringify(defaultConversation));
+      return defaultConversation;
+    }
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+};
+
+const getStoredMessages = (converId) => {
+  const key = `techcart_mock_messages_conver_${converId}`;
+  try {
+    const data = localStorage.getItem(key);
+    if (!data) {
+      const initialMessages = [
+        {
+          msgId: 1,
+          converId: Number(converId),
+          role: "ASSISTANT",
+          message:
+            "Hello! I'm your AI Shopkeeper at Nexora. Tell me what you're looking for—whether it's gaming, high-performance programming, or budget productivity—and I'll pick the best device for you!",
+          recommendedProductIds: [1, 2],
+          createdAt: new Date().toISOString(),
+        },
+      ];
+      localStorage.setItem(key, JSON.stringify(initialMessages));
+      return initialMessages;
+    }
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+};
+
+const saveStoredMessages = (converId, messages) => {
+  const key = `techcart_mock_messages_conver_${converId}`;
+  try {
+    localStorage.setItem(key, JSON.stringify(messages));
+  } catch (err) {
+    console.error("Failed to save messages:", err);
+  }
+};
+
+// AI Response & Product Recommendation Engine
+const generateAIResponse = (userPrompt) => {
+  const promptLower = userPrompt.toLowerCase();
+  let responseText = "";
+  let matchedProducts = [];
+
+  // 1. Gaming / High Performance
+  if (
+    promptLower.includes("game") ||
+    promptLower.includes("gaming") ||
+    promptLower.includes("rtx") ||
+    promptLower.includes("graphics") ||
+    promptLower.includes("fps")
+  ) {
+    matchedProducts = MOCK_PRODUCTS.filter(
+      (p) =>
+        p.category === "Laptops" &&
+        (p.pName.includes("Victus") || p.pName.includes("ROG") || p.graphics.includes("RTX"))
+    );
+    responseText =
+      "For gaming and intense graphical workflows, you need dedicated RTX GPU power, high refresh rates (144Hz+), and robust dual-fan cooling. Here are top recommendations that crush modern AAA titles within great value:";
+  }
+  // 2. Programming / Coding / College / Work
+  else if (
+    promptLower.includes("code") ||
+    promptLower.includes("coding") ||
+    promptLower.includes("developer") ||
+    promptLower.includes("student") ||
+    promptLower.includes("college") ||
+    promptLower.includes("work") ||
+    promptLower.includes("office")
+  ) {
+    matchedProducts = MOCK_PRODUCTS.filter(
+      (p) =>
+        (p.category === "Laptops" && (p.pName.includes("Vivobook") || p.pName.includes("MacBook"))) ||
+        (p.category === "Tablets" && p.pName.includes("iPad"))
+    );
+    responseText =
+      "For programming, multitasking, and studies, you want an excellent keyboard, vibrant high-res screen, fast NVMe SSD, and at least 16GB RAM for smooth IDE compile times. Here are my top picks:";
+  }
+  // 3. Smartphones / Mobile
+  else if (
+    promptLower.includes("phone") ||
+    promptLower.includes("smartphone") ||
+    promptLower.includes("mobile") ||
+    promptLower.includes("camera") ||
+    promptLower.includes("5g")
+  ) {
+    matchedProducts = MOCK_PRODUCTS.filter((p) => p.category === "Smartphones");
+    responseText =
+      "Looking for a cutting-edge smartphone? Whether you prioritize AI photography, all-day battery life, or silky smooth 120Hz displays, here are the standout devices:";
+  }
+  // 4. Budget constraints
+  else if (
+    promptLower.includes("budget") ||
+    promptLower.includes("cheap") ||
+    promptLower.includes("affordable") ||
+    promptLower.includes("under") ||
+    promptLower.includes("30000") ||
+    promptLower.includes("20000")
+  ) {
+    matchedProducts = MOCK_PRODUCTS.filter((p) => p.price <= 35000);
+    responseText =
+      "I've selected devices that offer the maximum performance per rupee without cutting corners on display quality and daily reliability. Check these out:";
+  }
+  // 5. Tablets
+  else if (promptLower.includes("tablet") || promptLower.includes("ipad") || promptLower.includes("draw")) {
+    matchedProducts = MOCK_PRODUCTS.filter((p) => p.category === "Tablets");
+    responseText =
+      "Tablets are fantastic for note-taking, digital art, media consumption, and portability. Here are our premier recommendations:";
+  }
+  // 6. General / Fallback
+  else {
+    matchedProducts = [MOCK_PRODUCTS[0], MOCK_PRODUCTS[1]];
+    responseText = `I understand you're interested in "${userPrompt}". I've matched hardware specs against our catalog to recommend these versatile, high-rated options for you:`;
+  }
+
+  // Ensure at least 1-2 products
+  if (matchedProducts.length === 0) {
+    matchedProducts = [MOCK_PRODUCTS[0], MOCK_PRODUCTS[1]];
+  }
+
+  return {
+    message: responseText,
+    recommendedProductIds: matchedProducts.slice(0, 2).map((p) => p.pId),
+  };
+};
+
+export const mockConversationService = {
+  // POST /api/conversations
+  create: async (title = "New Consultation") => {
+    await new Promise((res) => setTimeout(res, 100));
+    const conversations = getStoredConversations();
+    const newConver = {
+      converId: conversations.length > 0 ? Math.max(...conversations.map((c) => c.converId)) + 1 : 1,
+      title,
+      status: "ACTIVE",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    conversations.push(newConver);
+    localStorage.setItem(getConversationStorageKey(), JSON.stringify(conversations));
+    return newConver;
+  },
+
+  // GET /api/conversations
+  getAll: async () => {
+    await new Promise((res) => setTimeout(res, 100));
+    return getStoredConversations();
+  },
+
+  // GET /api/conversations/{converId}
+  getById: async (converId) => {
+    await new Promise((res) => setTimeout(res, 50));
+    const conversations = getStoredConversations();
+    const found = conversations.find((c) => c.converId === Number(converId));
+    return found || conversations[0];
+  },
+
+  // GET /api/conversations/{converId}/messages
+  getMessages: async (converId) => {
+    await new Promise((res) => setTimeout(res, 100));
+    return getStoredMessages(converId);
+  },
+
+  // POST /api/conversations/{converId}/messages
+  sendMessage: async (converId, text) => {
+    // 1. Append User Message
+    const messages = getStoredMessages(converId);
+    const userMsg = {
+      msgId: Date.now(),
+      converId: Number(converId),
+      role: "USER",
+      message: text,
+      createdAt: new Date().toISOString(),
+    };
+    messages.push(userMsg);
+
+    // 2. Simulate AI Processing Delay (400ms)
+    await new Promise((res) => setTimeout(res, 400));
+
+    // 3. Generate AI Assistant Response with recommended products
+    const aiData = generateAIResponse(text);
+    const aiMsg = {
+      msgId: Date.now() + 1,
+      converId: Number(converId),
+      role: "ASSISTANT",
+      message: aiData.message,
+      recommendedProductIds: aiData.recommendedProductIds,
+      createdAt: new Date().toISOString(),
+    };
+    messages.push(aiMsg);
+
+    // 4. Save both messages to DB/localStorage
+    saveStoredMessages(converId, messages);
+
+    return aiMsg;
+  },
+};
+

@@ -12,6 +12,7 @@ const Navbar = () => {
   const { totalItems } = useCart();
 
   const isProductsActive = location.pathname.startsWith("/products");
+  const isAIShopkeeperActive = location.pathname.startsWith("/ai-shopkeeper");
   const isCartActive = location.pathname === "/cart";
 
   const handleLogout = () => {
@@ -45,7 +46,14 @@ const Navbar = () => {
             </Link>
           </motion.div>
           <motion.div whileHover={{ y: -3 }}>
-            <Link to="/" className="hover:text-white transition-colors">
+            <Link
+              to="/ai-shopkeeper"
+              className={`transition-colors ${
+                isAIShopkeeperActive
+                  ? "text-blue-400 font-bold border-b-2 border-blue-400 pb-1"
+                  : "hover:text-white"
+              }`}
+            >
               AI Shopkeeper
             </Link>
           </motion.div>

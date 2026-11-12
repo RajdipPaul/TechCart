@@ -1,5 +1,10 @@
 import axios from "axios";
-import { mockAuthService, mockCartService, MOCK_PRODUCTS } from "../mock/mockData";
+import {
+  mockAuthService,
+  mockCartService,
+  mockConversationService,
+  MOCK_PRODUCTS,
+} from "../mock/mockData";
 
 // 1. Backend Base URL Configuration
 export const API_BASE_URL =
@@ -223,16 +228,40 @@ export const productAPI = {
 // 8. Conversations & Messaging API Endpoints (AI Assistant / Shopkeeper)
 export const conversationAPI = {
   create: async (title = "New Consultation") => {
-    const response = await api.post("/api/conversations", { title });
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockConversationService.create(title);
+    }
+    try {
+      const response = await api.post("/api/conversations", { title });
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockConversationService.create(title);
+      throw err;
+    }
   },
   getAll: async () => {
-    const response = await api.get("/api/conversations");
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockConversationService.getAll();
+    }
+    try {
+      const response = await api.get("/api/conversations");
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockConversationService.getAll();
+      throw err;
+    }
   },
   getById: async (converId) => {
-    const response = await api.get(`/api/conversations/${converId}`);
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockConversationService.getById(converId);
+    }
+    try {
+      const response = await api.get(`/api/conversations/${converId}`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockConversationService.getById(converId);
+      throw err;
+    }
   },
   delete: async (converId) => {
     const response = await api.delete(`/api/conversations/${converId}`);
@@ -243,14 +272,30 @@ export const conversationAPI = {
     return response.data;
   },
   getMessages: async (converId) => {
-    const response = await api.get(`/api/conversations/${converId}/messages`);
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockConversationService.getMessages(converId);
+    }
+    try {
+      const response = await api.get(`/api/conversations/${converId}/messages`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockConversationService.getMessages(converId);
+      throw err;
+    }
   },
   sendMessage: async (converId, message) => {
-    const response = await api.post(`/api/conversations/${converId}/messages`, {
-      message,
-    });
-    return response.data;
+    if (USE_MOCK_DATA) {
+      return mockConversationService.sendMessage(converId, message);
+    }
+    try {
+      const response = await api.post(`/api/conversations/${converId}/messages`, {
+        message,
+      });
+      return response.data;
+    } catch (err) {
+      if (!err.response) return mockConversationService.sendMessage(converId, message);
+      throw err;
+    }
   },
 };
 

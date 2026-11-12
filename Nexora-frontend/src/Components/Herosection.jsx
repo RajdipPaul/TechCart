@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { FaArrowRight } from "react-icons/fa6";
 import { HiOutlineSparkles } from "react-icons/hi2";
-import { toast } from "react-hot-toast";
 
 const AI_SAMPLE_QUESTIONS = [
   "Tell me what you`re looking for ??\nMaybe I can help you...?!",
@@ -14,6 +13,7 @@ const AI_SAMPLE_QUESTIONS = [
 ];
 
 const Herosection = () => {
+  const navigate = useNavigate();
   const [questionIndex, setQuestionIndex] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
@@ -29,14 +29,11 @@ const Herosection = () => {
   const handleSendPrompt = (e) => {
     e.preventDefault();
     if (!inputValue.trim()) {
-      toast("Type your hardware query or budget to ask our AI!", {
-        icon: "💡",
-      });
+      navigate("/ai-shopkeeper");
       return;
     }
 
-    toast.success(`Query sent: "${inputValue.trim()}". Connecting to AI Shopkeeper...`);
-    setInputValue("");
+    navigate("/ai-shopkeeper", { state: { initialPrompt: inputValue.trim() } });
   };
 
   return (

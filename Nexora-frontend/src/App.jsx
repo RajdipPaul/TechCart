@@ -6,6 +6,7 @@ import Login from "./Components/Login";
 import Signup from "./Components/Signup";
 import Products from "./Components/Products";
 import Cart from "./Components/Cart";
+import AIShopkeeper from "./Components/AIShopkeeper";
 
 const App = () => {
   return (
@@ -39,6 +40,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/products" element={<Products />} />
+        <Route path="/ai-shopkeeper" element={<AIShopkeeper />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
